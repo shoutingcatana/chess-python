@@ -126,35 +126,35 @@ def step_back(taken_position, all_groups, crosshair_group):
 def get_allowed_moves(figure, taken_position, coordinates, all_groups):
     allowed_pos_changes = None
     possible_moves = None
-    pos = clicked_field(coordinates, figure.rect.center)
+    cliked_pos = clicked_field(coordinates, figure.rect.center)
     afm = AllowedFigureMoves(taken_position, figure.color)
-    ffm_2 = ForbiddenFigureMoves2(taken_position, pos)
+    ffm_2 = ForbiddenFigureMoves2(taken_position, cliked_pos)
     if isinstance(figure, Farmer):
         allowed_pos_changes = afm.far()
-        if pos in allowed_pos_changes:
+        if cliked_pos in allowed_pos_changes:
             possible_moves = ffm_2.farmer()
     elif isinstance(figure, Runner):
         allowed_pos_changes = afm.run()
-        if pos in allowed_pos_changes:
+        if cliked_pos in allowed_pos_changes:
             possible_moves = ffm_2.runner()
     elif isinstance(figure, Horse):
         allowed_pos_changes = afm.hor()
     elif isinstance(figure, Tower):
         allowed_pos_changes = afm.tow()
-        if pos in allowed_pos_changes:
+        if cliked_pos in allowed_pos_changes:
             possible_moves = ffm_2.tower()
     elif isinstance(figure, King):
         allowed_pos_changes = afm.kin()
     elif isinstance(figure, Queen):
         allowed_pos_changes = afm.que()
-        if pos in allowed_pos_changes:
+        if cliked_pos in allowed_pos_changes:
             possible_moves = ffm_2.queen()
     if possible_moves is None:
         return allowed_pos_changes
-    if pos in possible_moves:
+    if cliked_pos in possible_moves:
         possible_moves = None
     if not moved_way_is_free(all_groups, possible_moves):
-        allowed_pos_changes.remove(pos)
+        allowed_pos_changes.remove(cliked_pos)
     return allowed_pos_changes
 
 
@@ -551,6 +551,7 @@ class ForbiddenFigureMoves2:
                 possible_moves.append([self.start_cor[0], self.start_cor[1]])
                 if self.start_cor[1] == self.goal_cor[1] + 75:
                     return possible_moves
+        return []
 
     def runner(self):
         possible_moves = []
