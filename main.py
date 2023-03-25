@@ -64,6 +64,8 @@ def moved_way_is_free(all_groups, check_for_occupation):
     if check_for_occupation is None:
         return True
     for cor in check_for_occupation:
+        print("check_for_occupation")
+        print(check_for_occupation)
         figur = find_figur(all_groups, cor)
         if figur is not None:
             return False
@@ -123,35 +125,35 @@ def step_back(taken_position, all_groups, crosshair_group):
 
 def get_allowed_moves(figure, taken_position, coordinates, all_groups):
     allowed_pos_changes = None
-    check_for_occupation = None
+    possible_moves = None
     pos = clicked_field(coordinates, figure.rect.center)
     afm = AllowedFigureMoves(taken_position, figure.color)
     ffm_2 = ForbiddenFigureMoves2(taken_position, pos)
     if isinstance(figure, Farmer):
         allowed_pos_changes = afm.far()
         if pos in allowed_pos_changes:
-            check_for_occupation = ffm_2.farmer()
+            possible_moves = ffm_2.farmer()
     elif isinstance(figure, Runner):
         allowed_pos_changes = afm.run()
         if pos in allowed_pos_changes:
-            check_for_occupation = ffm_2.runner()
+            possible_moves = ffm_2.runner()
     elif isinstance(figure, Horse):
         allowed_pos_changes = afm.hor()
     elif isinstance(figure, Tower):
         allowed_pos_changes = afm.tow()
         if pos in allowed_pos_changes:
-            check_for_occupation = ffm_2.tower()
+            possible_moves = ffm_2.tower()
     elif isinstance(figure, King):
         allowed_pos_changes = afm.kin()
     elif isinstance(figure, Queen):
         allowed_pos_changes = afm.que()
         if pos in allowed_pos_changes:
-            check_for_occupation = ffm_2.queen()
-    if check_for_occupation is None:
+            possible_moves = ffm_2.queen()
+    if possible_moves is None:
         return allowed_pos_changes
-    if check_for_occupation == pos or pos in check_for_occupation:
-        check_for_occupation = None
-    if not moved_way_is_free(all_groups, check_for_occupation):
+    if pos in possible_moves:
+        possible_moves = None
+    if not moved_way_is_free(all_groups, possible_moves):
         allowed_pos_changes.remove(pos)
     return allowed_pos_changes
 
@@ -520,75 +522,74 @@ class ForbiddenFigureMoves2:
         return [[self.start_cor[0], self.start_cor[1] + 75]]
 
     def tower(self):
-        proof_for_occupation = []
+        possible_moves = []
         # right
         if self.start_cor[0] < self.goal_cor[0]:
             for i in range(6):
                 self.start_cor[0] += 75
-                proof_for_occupation.append([self.start_cor[0], self.start_cor[1]])
+                possible_moves.append([self.start_cor[0], self.start_cor[1]])
                 if self.start_cor[0] == self.goal_cor[0] - 75:
-                    return proof_for_occupation
+                    return possible_moves
         # down
         elif self.start_cor[1] < self.goal_cor[1]:
             for i in range(6):
                 self.start_cor[1] += 75
-                proof_for_occupation.append([self.start_cor[0], self.start_cor[1]])
+                possible_moves.append([self.start_cor[0], self.start_cor[1]])
                 if self.start_cor[1] == self.goal_cor[1] - 75:
-                    return proof_for_occupation
+                    return possible_moves
         # left
         elif self.start_cor[0] > self.goal_cor[0]:
             for i in range(6):
                 self.start_cor[0] -= 75
-                proof_for_occupation.append([self.start_cor[0], self.start_cor[1]])
+                possible_moves.append([self.start_cor[0], self.start_cor[1]])
                 if self.start_cor[0] == self.goal_cor[0] + 75:
-                    return proof_for_occupation
+                    return possible_moves
         # up
         elif self.start_cor[1] > self.goal_cor[1]:
             for i in range(6):
                 self.start_cor[1] -= 75
-                proof_for_occupation.append([self.start_cor[0], self.start_cor[1]])
+                possible_moves.append([self.start_cor[0], self.start_cor[1]])
                 if self.start_cor[1] == self.goal_cor[1] + 75:
-                    return proof_for_occupation
+                    return possible_moves
 
     def runner(self):
-        proof_for_occupation = []
+        possible_moves = []
+        # moved down right
         if self.start_cor[0] < self.goal_cor[0] and self.start_cor[1] < self.goal_cor[1]:
             for i in range(6):
                 self.start_cor[0] += 75
                 self.start_cor[1] += 75
-                proof_for_occupation.append([self.start_cor[0], self.start_cor[1]])
+                possible_moves.append([self.start_cor[0], self.start_cor[1]])
                 if self.start_cor[0] == self.goal_cor[0]-75 and self.start_cor[1] == self.goal_cor[1]-75:
-                    return proof_for_occupation
+                    return possible_moves
+        # moved down left
         if self.start_cor[0] < self.goal_cor[0] and self.start_cor[1] > self.goal_cor[1]:
             for i in range(6):
                 self.start_cor[0] += 75
                 self.start_cor[1] -= 75
-                proof_for_occupation.append([self.start_cor[0], self.start_cor[1]])
+                possible_moves.append([self.start_cor[0], self.start_cor[1]])
                 if self.start_cor[0] == self.goal_cor[0]-75 and self.start_cor[1] == self.goal_cor[1]+75:
-                    return proof_for_occupation
+                    return possible_moves
+        # moved up left
         if self.start_cor[0] > self.goal_cor[0] and self.start_cor[1] > self.goal_cor[1]:
             for i in range(6):
                 self.start_cor[0] -= 75
                 self.start_cor[1] -= 75
-                proof_for_occupation.append([self.start_cor[0], self.start_cor[1]])
+                possible_moves.append([self.start_cor[0], self.start_cor[1]])
                 if self.start_cor[0] == self.goal_cor[0]+75 and self.start_cor[1] == self.goal_cor[1]+75:
-                    return proof_for_occupation
+                    return possible_moves
+        # moved up right
         if self.start_cor[0] > self.goal_cor[0] and self.start_cor[1] < self.goal_cor[1]:
             for i in range(6):
                 self.start_cor[0] -= 75
                 self.start_cor[1] += 75
-                proof_for_occupation.append([self.start_cor[0], self.start_cor[1]])
+                possible_moves.append([self.start_cor[0], self.start_cor[1]])
                 if self.start_cor[0] == self.goal_cor[0]+75 and self.start_cor[1] == self.goal_cor[1]-75:
-                    return proof_for_occupation
+                    return possible_moves
+        return []
 
     def queen(self):
-        proof_for_occupation = []
-        if self.runner() is None:
-            proof_for_occupation.append(self.tower())
-            return proof_for_occupation
-        else:
-            proof_for_occupation.append(self.runner())
-            return proof_for_occupation
+        return self.tower() + self.runner()
 
 
 def main():
@@ -668,7 +669,7 @@ def main():
                 if step_back_gets_pressed:
                     if taken_figure is None:
                         continue
-                    step_back(taken_position, all_groups, crosshair_group)
+                    step_back(taken_position.copy(), all_groups, crosshair_group)
                     phase = "take"
                     continue
 
@@ -682,7 +683,7 @@ def main():
                     kind_of_figure, taken_position = take_figur(all_groups, clicked_position, crosshair_group)
                 else:
                     print(taken_position)
-                    allowed_pos_changes = get_allowed_moves(kind_of_figure, taken_position, coordinates, all_groups)
+                    allowed_pos_changes = get_allowed_moves(kind_of_figure, taken_position.copy(), coordinates, all_groups)
                     if not set_figur_is_allowed(all_groups, clicked_position, crosshair_group, allowed_pos_changes):
                         continue
                     if set_figur(clicked_position, all_groups, crosshair_group):
