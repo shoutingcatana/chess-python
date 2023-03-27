@@ -112,11 +112,11 @@ def call_figur_classes(coordinates, figures):
     return coordinates
 
 
-def is_occupied_position(all_groups, clicked_position, mouse_sprite_color):
+def is_occupied_position(all_groups, clicked_position, mouse_sprite):
     clicked_figure = find_figur(all_groups, clicked_position)
     if clicked_figure is None:
         return False
-    if clicked_figure.color == mouse_sprite_color:
+    if clicked_figure.color == mouse_sprite.color:
         return True
 
 
@@ -165,12 +165,35 @@ def get_allowed_moves(figure, taken_position, coordinates, all_groups):
 
 def set_figur_is_allowed(all_groups, clicked_position, crosshair_group, allowed_pos_changes):
     mouse_sprite = crosshair_group.sprites()[0]
-    if is_occupied_position(all_groups, clicked_position, mouse_sprite.color):
+    # TODO: markierter block sollte in eine extra funktion separiert werden
+    if is_occupied_position(all_groups, clicked_position, mouse_sprite):
         return False
     elif allowed_pos_changes is None or clicked_position not in allowed_pos_changes:
         return False
     else:
         return True
+
+
+def farmer_oblique_hit(crosshair_group, all_groups, clicked_position, allowed_pos_changes, taken_position):
+    # the farmer can't hit another figure straight (just oblique)
+    mouse_sprite = crosshair_group.sprites()[0]
+    clicked_figure = find_figur(all_groups, clicked_position)
+    if clicked_figure is not None:
+        if str(mouse_sprite) == "<Farmer Sprite(in 1 groups)>" and clicked_figure.color != mouse_sprite.color:
+            allowed_pos_changes = []
+            print([taken_position[0]-75, taken_position[1]+75])
+            print(clicked_position)
+            if mouse_sprite.color == "white":
+                if [taken_position[0]-75, taken_position[1]+75] == clicked_position:
+                    allowed_pos_changes.append([taken_position[0]-75, taken_position[1]+75])
+                elif [taken_position[0]+75, taken_position[1]+75] == clicked_position:
+                    allowed_pos_changes.append([taken_position[0]+75, taken_position[1]+75])
+            elif mouse_sprite.color == "black":
+                if [taken_position[0] - 75, taken_position[1] - 75] == clicked_position:
+                    allowed_pos_changes.append([taken_position[0] - 75, taken_position[1] - 75])
+                elif [taken_position[0] + 75, taken_position[1] - 75] == clicked_position:
+                    allowed_pos_changes.append([taken_position[0] + 75, taken_position[1] - 75])
+    return allowed_pos_changes
 
 
 class Crosshair(pygame.sprite.Sprite):
@@ -683,6 +706,8 @@ def main():
                 else:
                     allowed_pos_changes = get_allowed_moves(kind_of_figure, taken_position.copy(), coordinates,
                                                             all_groups)
+                    allowed_pos_changes = farmer_oblique_hit(crosshair_group, all_groups, clicked_position,
+                                                             allowed_pos_changes, taken_position)
                     if not set_figur_is_allowed(all_groups, clicked_position, crosshair_group, allowed_pos_changes):
                         continue
                     if set_figur(clicked_position, all_groups, crosshair_group):
