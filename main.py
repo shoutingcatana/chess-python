@@ -51,7 +51,16 @@ def take_figur(all_groups, clicked_position, crosshair_group):
     return name_of_figur, list(clicked_figur.rect.center)
 
 
+def delete_figure_allowed(crosshair_group, all_groups, clicked_position):
+    mouse_sprite = crosshair_group.sprites()[0]
+    clicked_figure = find_figur(all_groups, clicked_position)
+    if clicked_figure is not None:
+        if clicked_figure.color != mouse_sprite.color:
+            all_groups[type(clicked_figure)].remove(clicked_figure)
+
+
 def set_figur(clicked_position, all_groups, crosshair_group):
+    delete_figure_allowed(crosshair_group, all_groups, clicked_position)
     mouse_sprite = crosshair_group.sprites()[0]
     mouse_sprite.rect.center = clicked_position
     all_groups[type(mouse_sprite)].add(mouse_sprite)
@@ -64,8 +73,6 @@ def moved_way_is_free(all_groups, check_for_occupation):
     if check_for_occupation is None:
         return True
     for cor in check_for_occupation:
-        print("check_for_occupation")
-        print(check_for_occupation)
         figur = find_figur(all_groups, cor)
         if figur is not None:
             return False
@@ -111,8 +118,6 @@ def is_occupied_position(all_groups, clicked_position, mouse_sprite_color):
         return False
     if clicked_figure.color == mouse_sprite_color:
         return True
-    if clicked_figure.color != mouse_sprite_color:
-        all_groups[type(clicked_figure)].remove(clicked_figure)
 
 
 def step_back(taken_position, all_groups, crosshair_group):
@@ -126,35 +131,35 @@ def step_back(taken_position, all_groups, crosshair_group):
 def get_allowed_moves(figure, taken_position, coordinates, all_groups):
     allowed_pos_changes = None
     possible_moves = None
-    cliked_pos = clicked_field(coordinates, figure.rect.center)
-    afm = AllowedFigureMoves(taken_position, figure.color)
-    ffm_2 = ForbiddenFigureMoves2(taken_position, cliked_pos)
+    clicked_pos = clicked_field(coordinates, figure.rect.center)
+    afm = AllowedFigureMoves(taken_position.copy(), figure.color)
+    ffm_2 = ForbiddenFigureMoves2(taken_position.copy(), clicked_pos.copy(), figure.color)
     if isinstance(figure, Farmer):
         allowed_pos_changes = afm.far()
-        if cliked_pos in allowed_pos_changes:
+        if clicked_pos in allowed_pos_changes:
             possible_moves = ffm_2.farmer()
     elif isinstance(figure, Runner):
         allowed_pos_changes = afm.run()
-        if cliked_pos in allowed_pos_changes:
+        if clicked_pos in allowed_pos_changes:
             possible_moves = ffm_2.runner()
     elif isinstance(figure, Horse):
         allowed_pos_changes = afm.hor()
     elif isinstance(figure, Tower):
         allowed_pos_changes = afm.tow()
-        if cliked_pos in allowed_pos_changes:
+        if clicked_pos in allowed_pos_changes:
             possible_moves = ffm_2.tower()
     elif isinstance(figure, King):
         allowed_pos_changes = afm.kin()
     elif isinstance(figure, Queen):
-        allowed_pos_changes = afm.que()
-        if cliked_pos in allowed_pos_changes:
-            possible_moves = ffm_2.queen()
+        allowed_pos_changes = afm.run() + afm.tow()
+        if clicked_pos in allowed_pos_changes:
+            possible_moves = ffm_2.runner() + ffm_2.tower()
     if possible_moves is None:
         return allowed_pos_changes
-    if cliked_pos in possible_moves:
+    if clicked_pos in possible_moves:
         possible_moves = None
     if not moved_way_is_free(all_groups, possible_moves):
-        allowed_pos_changes.remove(cliked_pos)
+        allowed_pos_changes.remove(clicked_pos)
     return allowed_pos_changes
 
 
@@ -504,24 +509,21 @@ class AllowedFigureMoves:
                         [x + 75, y + 75]]
         return allowed_cors
 
-    def que(self):
-        allowed_cors = []
-        for t in self.tow():
-            allowed_cors.append(t)
-        for r in self.run():
-            allowed_cors.append(r)
-        return allowed_cors
-
 
 class ForbiddenFigureMoves2:
-    def __init__(self, start_cor, goal_cor):
+    def __init__(self, start_cor, goal_cor, figure_color):
         self.goal_cor = goal_cor
         self.start_cor = start_cor
+        self.color = figure_color
 
     def farmer(self):
-        return [[self.start_cor[0], self.start_cor[1] + 75]]
+        if self.color == "white":
+            return [[self.start_cor[0], self.start_cor[1] + 75]]
+        else:
+            return [[self.start_cor[0], self.start_cor[1] - 75]]
 
     def tower(self):
+        # bei der queen könnte ein problem der parameter die ursache sein
         possible_moves = []
         # right
         if self.start_cor[0] < self.goal_cor[0]:
@@ -563,7 +565,7 @@ class ForbiddenFigureMoves2:
                 possible_moves.append([self.start_cor[0], self.start_cor[1]])
                 if self.start_cor[0] == self.goal_cor[0]-75 and self.start_cor[1] == self.goal_cor[1]-75:
                     return possible_moves
-        # moved down left
+        # moved up right
         if self.start_cor[0] < self.goal_cor[0] and self.start_cor[1] > self.goal_cor[1]:
             for i in range(6):
                 self.start_cor[0] += 75
@@ -579,7 +581,7 @@ class ForbiddenFigureMoves2:
                 possible_moves.append([self.start_cor[0], self.start_cor[1]])
                 if self.start_cor[0] == self.goal_cor[0]+75 and self.start_cor[1] == self.goal_cor[1]+75:
                     return possible_moves
-        # moved up right
+        # moved down left
         if self.start_cor[0] > self.goal_cor[0] and self.start_cor[1] < self.goal_cor[1]:
             for i in range(6):
                 self.start_cor[0] -= 75
@@ -588,9 +590,6 @@ class ForbiddenFigureMoves2:
                 if self.start_cor[0] == self.goal_cor[0]+75 and self.start_cor[1] == self.goal_cor[1]-75:
                     return possible_moves
         return []
-
-    def queen(self):
-        return self.tower() + self.runner()
 
 
 def main():
@@ -663,8 +662,7 @@ def main():
 
             step_back_gets_pressed = button_rect.collidepoint(clicked_position)
             if event.type == pygame.MOUSEBUTTONDOWN:
-                # TODO: schwarzer bauer lässt sich nicht bewegen
-                # TODO: check the check_for occupation function for any fails
+    # TODO: bauer darf nur schräg schlagen(falls die schräg vorderliegende position belegt ist, darf der bauer dort hin)
                 clicked_position = clicked_field(coordinates, clicked_position)
 
                 if step_back_gets_pressed:
@@ -683,8 +681,8 @@ def main():
                         phase = "set"
                     kind_of_figure, taken_position = take_figur(all_groups, clicked_position, crosshair_group)
                 else:
-                    print(taken_position)
-                    allowed_pos_changes = get_allowed_moves(kind_of_figure, taken_position.copy(), coordinates, all_groups)
+                    allowed_pos_changes = get_allowed_moves(kind_of_figure, taken_position.copy(), coordinates,
+                                                            all_groups)
                     if not set_figur_is_allowed(all_groups, clicked_position, crosshair_group, allowed_pos_changes):
                         continue
                     if set_figur(clicked_position, all_groups, crosshair_group):
