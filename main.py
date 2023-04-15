@@ -136,6 +136,8 @@ def get_allowed_moves(figure, taken_position, coordinates, all_groups):
     ffm_2 = ForbiddenFigureMoves2(taken_position.copy(), clicked_pos.copy(), figure.color)
     if isinstance(figure, Farmer):
         allowed_pos_changes = afm.far()
+        allowed_pos_changes = farmer_oblique_hit(figure, all_groups, clicked_position,
+                                                 allowed_pos_changes, taken_position)
         if clicked_pos in allowed_pos_changes:
             possible_moves = ffm_2.farmer()
     elif isinstance(figure, Runner):
@@ -160,12 +162,14 @@ def get_allowed_moves(figure, taken_position, coordinates, all_groups):
         possible_moves = None
     if not moved_way_is_free(all_groups, possible_moves):
         allowed_pos_changes.remove(clicked_pos)
+    for pos in allowed_pos_changes:
+        if pos not in coordinates:
+            allowed_pos_changes.remove(pos)
     return allowed_pos_changes
 
 
 def set_figur_is_allowed(all_groups, clicked_position, crosshair_group, allowed_pos_changes):
     mouse_sprite = crosshair_group.sprites()[0]
-    # TODO: markierter block sollte in eine extra funktion separiert werden
     if is_occupied_position(all_groups, clicked_position, mouse_sprite):
         return False
     elif allowed_pos_changes is None or clicked_position not in allowed_pos_changes:
@@ -174,26 +178,36 @@ def set_figur_is_allowed(all_groups, clicked_position, crosshair_group, allowed_
         return True
 
 
-def farmer_oblique_hit(crosshair_group, all_groups, clicked_position, allowed_pos_changes, taken_position):
+def farmer_oblique_hit(figure, all_groups, clicked_position, allowed_pos_changes, taken_position):
     # the farmer can't hit another figure straight (just oblique)
-    mouse_sprite = crosshair_group.sprites()[0]
     clicked_figure = find_figur(all_groups, clicked_position)
     if clicked_figure is not None:
-        if str(mouse_sprite) == "<Farmer Sprite(in 1 groups)>" and clicked_figure.color != mouse_sprite.color:
+        print(figure, clicked_figure)
+        if str(figure) == "<Farmer Sprite(in 1 groups)>" and clicked_figure.color != figure.color:
             allowed_pos_changes = []
-            print([taken_position[0]-75, taken_position[1]+75])
-            print(clicked_position)
-            if mouse_sprite.color == "white":
+            if figure.color == "white":
                 if [taken_position[0]-75, taken_position[1]+75] == clicked_position:
                     allowed_pos_changes.append([taken_position[0]-75, taken_position[1]+75])
                 elif [taken_position[0]+75, taken_position[1]+75] == clicked_position:
                     allowed_pos_changes.append([taken_position[0]+75, taken_position[1]+75])
-            elif mouse_sprite.color == "black":
+            elif figure.color == "black":
                 if [taken_position[0] - 75, taken_position[1] - 75] == clicked_position:
                     allowed_pos_changes.append([taken_position[0] - 75, taken_position[1] - 75])
                 elif [taken_position[0] + 75, taken_position[1] - 75] == clicked_position:
                     allowed_pos_changes.append([taken_position[0] + 75, taken_position[1] - 75])
     return allowed_pos_changes
+
+
+def chess(all_groups, coordinates):
+    all_allowed_moves = []
+    # Todo: turm und läufer bekommen noch positionen die nicht erreichbar sind da auf dem weg etwas steht
+    for group in all_groups.values():
+        for figure in group:
+            if isinstance(figure, Runner) and figure.color == "black":
+                clicked_position = clicked_field(coordinates, figure.rect.center)
+                allowed_moves_per_figure = get_allowed_moves(figure, clicked_position, coordinates, all_groups)
+
+                # print(len(allowed_moves_per_figure))
 
 
 class Crosshair(pygame.sprite.Sprite):
@@ -685,9 +699,7 @@ def main():
 
             step_back_gets_pressed = button_rect.collidepoint(clicked_position)
             if event.type == pygame.MOUSEBUTTONDOWN:
-    # TODO: bauer darf nur schräg schlagen(falls die schräg vorderliegende position belegt ist, darf der bauer dort hin)
                 clicked_position = clicked_field(coordinates, clicked_position)
-
                 if step_back_gets_pressed:
                     if taken_figure is None:
                         continue
@@ -701,16 +713,16 @@ def main():
                 if phase == "take":
                     taken_figure = find_figur(all_groups, clicked_position)
                     if taken_figure is not None:
+                        kind_of_figure, taken_position = take_figur(all_groups, clicked_position, crosshair_group)
                         phase = "set"
-                    kind_of_figure, taken_position = take_figur(all_groups, clicked_position, crosshair_group)
                 else:
                     allowed_pos_changes = get_allowed_moves(kind_of_figure, taken_position.copy(), coordinates,
                                                             all_groups)
-                    allowed_pos_changes = farmer_oblique_hit(crosshair_group, all_groups, clicked_position,
-                                                             allowed_pos_changes, taken_position)
                     if not set_figur_is_allowed(all_groups, clicked_position, crosshair_group, allowed_pos_changes):
                         continue
+
                     if set_figur(clicked_position, all_groups, crosshair_group):
+                        chess(all_groups, coordinates)
                         phase = "take"
                     taken_figure = None
 
@@ -749,3 +761,4 @@ def main():
 
 
 main()
+
