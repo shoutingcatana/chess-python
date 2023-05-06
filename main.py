@@ -51,15 +51,15 @@ def take_figur(all_groups, clicked_position, crosshair_group):
     return name_of_figur, list(clicked_figur.rect.center)
 
 
-def delete_figure_allowed(crosshair_group, all_groups, clicked_position):
-    mouse_sprite = crosshair_group.sprites()[0]
+def delete_figure_allowed(all_groups, clicked_position):
+    # mouse_sprite = crosshair_group.sprites()[0]
     clicked_figure = find_figur(all_groups, clicked_position)
     if clicked_figure is not None:
         all_groups[type(clicked_figure)].remove(clicked_figure)
 
 
 def set_figur(clicked_position, all_groups, crosshair_group):
-    delete_figure_allowed(crosshair_group, all_groups, clicked_position)
+    delete_figure_allowed(all_groups, clicked_position)
     mouse_sprite = crosshair_group.sprites()[0]
     mouse_sprite.rect.center = clicked_position
     all_groups[type(mouse_sprite)].add(mouse_sprite)
@@ -129,35 +129,33 @@ def clean_up_list(the_ist):
 
 def get_allowed_moves(taken_figure, taken_position, coordinates, all_groups):
     allowed_pos_changes = []
-    moved_way = None
+    moved_way = []
     clicked_pos = clicked_field(coordinates, taken_figure.rect.center)
+    taken_position = list(taken_position)
     afm = AllowedFigureMoves(taken_position.copy(), taken_figure.color, all_groups, coordinates)
-    ffm_2 = MovedWay(taken_position.copy(), clicked_pos.copy(), taken_figure.color)
+    ffm_2 = MovedWay(taken_position, clicked_pos, taken_figure.color)
     if isinstance(taken_figure, Farmer):
         allowed_pos_changes = afm.far()
-        if clicked_pos in allowed_pos_changes:
-            moved_way = ffm_2.farmer()
+        moved_way = ffm_2.farmer()
     elif isinstance(taken_figure, Runner):
         allowed_pos_changes = afm.run()
-        if clicked_pos in allowed_pos_changes:
-            moved_way = ffm_2.runner()
+        #moved_way = ffm_2.runner()
     elif isinstance(taken_figure, Horse):
         allowed_pos_changes = afm.hor()
     elif isinstance(taken_figure, Tower):
         allowed_pos_changes = afm.tow()
-        if clicked_pos in allowed_pos_changes:
-            moved_way = ffm_2.tower()
+        moved_way = ffm_2.tower()
     elif isinstance(taken_figure, King):
         allowed_pos_changes = afm.kin()
     elif isinstance(taken_figure, Queen):
         allowed_pos_changes = afm.run() + afm.tow()
-        if clicked_pos in allowed_pos_changes:
-            moved_way = ffm_2.runner() + ffm_2.tower()
-    if moved_way is not None:
-        if clicked_pos in moved_way:
-            moved_way = None
-        if not moved_way_is_free(all_groups, moved_way):
-            allowed_pos_changes = []
+        moved_way = ffm_2.runner() + ffm_2.tower()
+    if taken_position in allowed_pos_changes:
+        allowed_pos_changes.remove(taken_position)
+    # a_p_s = allowed_pos_changes
+    # if the player tried to move oblique with the tower or straight with the runner this check returns nou a_p_s
+    # if not moved_way_is_free(all_groups, moved_way):
+    #     allowed_pos_changes = []
         return allowed_pos_changes
     else:
         return allowed_pos_changes
@@ -170,17 +168,15 @@ def set_figur_is_allowed(clicked_position, allowed_pos_changes):
         return True
 
 
-def chess(all_groups, coordinates, kind_of_figure, taken_figure):
+def chess(all_groups, coordinates):
     all_allowed_moves = []
-    # Todo: turm und läufer bekommen noch positionen die nicht erreichbar sind da auf dem weg etwas steht
     for group in all_groups.values():
         for figure in group:
-            if isinstance(figure, Runner) and figure.color == "black":
-                clicked_position = clicked_field(coordinates, figure.rect.center)
-                allowed_moves_per_figure = get_allowed_moves(taken_figure, clicked_position, coordinates,
-                                                            all_groups)
-
-                # print(len(allowed_moves_per_figure))
+            if figure.color == "black" and isinstance(figure, Tower):
+                allowed_figure_moves = get_allowed_moves(figure, figure.rect.center, coordinates, all_groups)
+                # if not set_figur_is_allowed()
+                for move in allowed_figure_moves:
+                    all_allowed_moves.append(move)
 
 
 def is_enemy_figure(color_1, color_2):
@@ -427,6 +423,7 @@ class AllowedFigureMoves:
         self.figur_color = figur_color
         self.all_groups = all_groups
         self.coordinates = coordinates
+        self.all_groups = all_groups
 
     def far(self):
         allowed_cors = []
@@ -454,6 +451,13 @@ class AllowedFigureMoves:
                     allowed_cors.append(allowed_cor)
             allowed_cors = is_in_coordinates(self.coordinates, allowed_cors.copy())
             allowed_cors = clean_up_list(allowed_cors)
+            if len(allowed_cors) > 1:
+                result = []
+                mw = MovedWay(self.cor, allowed_cors[1], self.figur_color)
+                moved_way = mw.farmer()
+                if not moved_way_is_free(self.all_groups, moved_way):
+                    result.append(allowed_cors[1])
+                    return result
             return allowed_cors
 
     def run(self):
@@ -486,9 +490,25 @@ class AllowedFigureMoves:
                         allowed_cors.append(allowed_cor)
             allowed_cors = is_in_coordinates(self.coordinates, allowed_cors.copy())
             allowed_cors = clean_up_list(allowed_cors)
-            return allowed_cors
+            if self.cor in allowed_cors:
+                allowed_cors.remove(self.cor)
+            result = []
+            for pos in allowed_cors:
+                mw = MovedWay(self.cor, pos, self.figur_color)
+                moved_way = mw.runner()
+                print(moved_way)
+            return []
+            #     if moved_way is not None and moved_way_is_free(self.all_groups, moved_way):
+            #         result.append(cor)
+            #         print(result)
+            #         return result
+            #     else:
+            #         break
+            # print(allowed_cors)
+            # return allowed_cors
 
     def hor(self):
+        possible_allowed_cors = []
         allowed_cors = []
         count = 0
         for n in range(28):
@@ -519,17 +539,20 @@ class AllowedFigureMoves:
                 x -= 75
                 y += 150
             allowed_cor = [x, y]
-            clicked_position = find_figur(self.all_groups, allowed_cor)
-            if clicked_position is None:
-                allowed_cors.append(allowed_cor)
-            else:
-                if is_enemy_figure(self.figur_color, clicked_position.color):
-                    allowed_cors.append(allowed_cor)
-        allowed_cors = is_in_coordinates(self.coordinates, allowed_cors.copy())
-        allowed_cors = clean_up_list(allowed_cors)
+            possible_allowed_cors.append(allowed_cor)
+        possible_allowed_cors = is_in_coordinates(self.coordinates, possible_allowed_cors.copy())
+        possible_allowed_cors = clean_up_list(possible_allowed_cors)
+        for cor in possible_allowed_cors.copy():
+            clicked_figure = find_figur(self.all_groups, cor)
+            if clicked_figure is None:
+                allowed_cors.append(cor)
+            elif is_enemy_figure(self.figur_color, clicked_figure.color):
+                allowed_cors.append(cor)
+        allowed_cors.remove(self.cor)
         return allowed_cors
 
     def tow(self):
+        possible_allowed_cors = []
         allowed_cors = []
         x, y = self.cor
         count = 0
@@ -547,27 +570,30 @@ class AllowedFigureMoves:
                 if n in range(21, 28):
                     x -= 75
                 allowed_cor = [x, y]
-                clicked_position = find_figur(self.all_groups, allowed_cor)
-                if clicked_position is None:
-                    allowed_cors.append(allowed_cor)
-                else:
-                    if is_enemy_figure(self.figur_color, clicked_position.color):
-                        allowed_cors.append(allowed_cor)
-            allowed_cors = is_in_coordinates(self.coordinates, allowed_cors.copy())
-            allowed_cors = clean_up_list(allowed_cors)
+                possible_allowed_cors.append(allowed_cor)
+            possible_allowed_cors = is_in_coordinates(self.coordinates, possible_allowed_cors.copy())
+            possible_allowed_cors = clean_up_list(possible_allowed_cors)
+            for cor in possible_allowed_cors.copy():
+                clicked_figure = find_figur(self.all_groups, cor)
+                if clicked_figure is None:
+                    allowed_cors.append(cor)
+                elif is_enemy_figure(self.figur_color, clicked_figure.color):
+                    allowed_cors.append(cor)
             return allowed_cors
 
     def kin(self):
         x, y = self.cor
-        allowed_cors = [[x, y - 75], [x - 75, y], [x + 75, y], [x, y + 75], [x - 75, y - 75], [x + 75, y - 75],
-                        [x - 75, y + 75],
-                        [x + 75, y + 75]]
-        for cor in allowed_cors:
-            clicked_position = find_figur(self.all_groups, cor)
-            if clicked_position is not None and not is_enemy_figure(self.figur_color, clicked_position.color):
-                allowed_cors.remove(cor)
-        allowed_cors = is_in_coordinates(self.coordinates, allowed_cors.copy())
-        allowed_cors = clean_up_list(allowed_cors)
+        allowed_cors = []
+        possible_allowed_cors = [[x, y - 75], [x - 75, y], [x + 75, y], [x, y + 75], [x - 75, y - 75], [x + 75, y - 75],
+                                 [x - 75, y + 75], [x + 75, y + 75]]
+        possible_allowed_cors = is_in_coordinates(self.coordinates, possible_allowed_cors.copy())
+        possible_allowed_cors = clean_up_list(possible_allowed_cors)
+        for cor in possible_allowed_cors.copy():
+            clicked_figure = find_figur(self.all_groups, cor)
+            if clicked_figure is None:
+                allowed_cors.append(cor)
+            elif is_enemy_figure(self.figur_color, clicked_figure.color):
+                allowed_cors.append(cor)
         return allowed_cors
 
 
@@ -578,10 +604,9 @@ class MovedWay:
         self.color = figure_color
 
     def farmer(self):
-        # if self.start_cor[1] - self.goal_cor[1] in [140, -140]:
-        if self.color == "white":
+        if self.color == "white" and self.goal_cor[1] == self.start_cor[1] + 150:
             return [[self.start_cor[0], self.start_cor[1] + 75]]
-        else:
+        elif self.color == "black" and self.goal_cor[1] == self.start_cor[1] - 150:
             return [[self.start_cor[0], self.start_cor[1] - 75]]
 
     def tower(self):
@@ -614,10 +639,18 @@ class MovedWay:
                 moved_way.append([self.start_cor[0], self.start_cor[1]])
                 if self.start_cor[1] == self.goal_cor[1] + 75:
                     return moved_way
+        # Todo: here is the mistake, if no of these options is returning something we have to return something that
+        # Todo: gives us a sign that allowed_pos_changes has to be nothing
         return []
 
     def runner(self):
         moved_way = []
+        # moved only one field
+        if self.start_cor[0] - 75 == self.goal_cor[0] and self.start_cor[1] + 75 == self.goal_cor[1] or\
+                self.start_cor[0] + 75 == self.goal_cor[0] and self.start_cor[1] + 75 == self.goal_cor[1] or\
+                self.start_cor[0] - 75 == self.goal_cor[0] and self.start_cor[1] - 75 == self.goal_cor[1] or \
+                self.start_cor[0] + 75 == self.goal_cor[0] and self.start_cor[1] - 75 == self.goal_cor[1]:
+            return []
         # moved down right
         if self.start_cor[0] < self.goal_cor[0] and self.start_cor[1] < self.goal_cor[1]:
             for i in range(6):
@@ -627,7 +660,7 @@ class MovedWay:
                 if self.start_cor[0] == self.goal_cor[0]-75 and self.start_cor[1] == self.goal_cor[1]-75:
                     return moved_way
         # moved up right
-        if self.start_cor[0] < self.goal_cor[0] and self.start_cor[1] > self.goal_cor[1]:
+        elif self.start_cor[0] < self.goal_cor[0] and self.start_cor[1] > self.goal_cor[1]:
             for i in range(6):
                 self.start_cor[0] += 75
                 self.start_cor[1] -= 75
@@ -635,7 +668,7 @@ class MovedWay:
                 if self.start_cor[0] == self.goal_cor[0]-75 and self.start_cor[1] == self.goal_cor[1]+75:
                     return moved_way
         # moved up left
-        if self.start_cor[0] > self.goal_cor[0] and self.start_cor[1] > self.goal_cor[1]:
+        elif self.start_cor[0] > self.goal_cor[0] and self.start_cor[1] > self.goal_cor[1]:
             for i in range(6):
                 self.start_cor[0] -= 75
                 self.start_cor[1] -= 75
@@ -643,14 +676,14 @@ class MovedWay:
                 if self.start_cor[0] == self.goal_cor[0]+75 and self.start_cor[1] == self.goal_cor[1]+75:
                     return moved_way
         # moved down left
-        if self.start_cor[0] > self.goal_cor[0] and self.start_cor[1] < self.goal_cor[1]:
+        elif self.start_cor[0] > self.goal_cor[0] and self.start_cor[1] < self.goal_cor[1]:
             for i in range(6):
                 self.start_cor[0] -= 75
                 self.start_cor[1] += 75
                 moved_way.append([self.start_cor[0], self.start_cor[1]])
                 if self.start_cor[0] == self.goal_cor[0]+75 and self.start_cor[1] == self.goal_cor[1]-75:
                     return moved_way
-        return []
+        return "apfel"
 
 
 def main():
@@ -706,7 +739,6 @@ def main():
 
     # some start conditions
     running = True
-    kind_of_figure = None
     taken_position = None
     taken_figure = None
     phase = "take"
@@ -741,14 +773,12 @@ def main():
                         phase = "set"
                 # set phase
                 else:
-                    clicked_figure = find_figur(all_groups, clicked_position)
-                    allowed_pos_changes = get_allowed_moves(taken_figure, taken_position, coordinates,
-                                                            all_groups)
+                    allowed_pos_changes = get_allowed_moves(taken_figure, taken_position, coordinates, all_groups)
                     if not set_figur_is_allowed(clicked_position, allowed_pos_changes):
                         continue
 
                     if set_figur(clicked_position, all_groups, crosshair_group):
-                        # chess(all_groups, coordinates)
+                        chess(all_groups, coordinates)
                         phase = "take"
                     taken_figure = None
 
@@ -786,6 +816,5 @@ def main():
         clock.tick(60)
 
 
-
 main()
-
+# [135, 510], [360, 585], [435, 510], [510, 435], [585, 360], [660, 285]
